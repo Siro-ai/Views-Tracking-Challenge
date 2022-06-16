@@ -26,24 +26,22 @@ export const recordingViews = functions.https.onRequest(async (request, response
   response.set("Access-Control-Allow-Headers", "Content-Type");
   if (request.method === "POST") {
     try {
-      const {viewerId, recordingId} = request.body;
+      const {viewerId, recordingId} = request.body;      
 
+      const recording = await db.collection("Recordings").doc(recordingId).get();
+      const user = await db.collection("Users").doc(viewerId).get();
 
-      /* BONUS OPPORTUNITY
-      Looks like you're a curious person. We like that.
-      Curiosity is one of our values.
+      var creator=recording.get("creatorId");
 
-      For bonus points:
-        Show off your curiosity by adding some validation to this function.
-        1. Decide what should be validated, (don't worry about security / auth)
-        2. Validate it
-        3. Send a 400 response and return if the request is invalid
-            response.status(400).send();
-        */
-
+      if(user.id==creator){
+        response.status(400).send();
+      }
+      else{
       await trackRecordingView(viewerId, recordingId);
       // it worked!
       response.status(200).send("No errors!");
+      }
+      
     } catch (e) {
       // it didn't work :/
       functions.logger.error(e);

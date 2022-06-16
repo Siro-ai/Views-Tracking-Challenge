@@ -1,37 +1,59 @@
 import * as functions from "firebase-functions";
 import {db} from "./index";
 
-/* BONUS OPPORTUNITY
-It's not great (it's bad) to throw all of this code in one file.
-Can you help us organize this code better?
-*/
 
+function updateCheckViewed(hashJoe:any,hashJake:any,userid:string,recordingid:string):boolean{
 
-export interface Recording {
-    id: string; // matches document id in firestore
-    creatorId: string; // id of the user that created this recording
-    uniqueViewCount: number;
-}
+  functions.logger.debug("hashJoe ",hashJoe.get(recordingid));
+  functions.logger.debug("userid: ",userid);
 
-export interface User {
-    id: string; // mathes both the user's document id
-    uniqueRecordingViewCount: number; // sum of all recording views
-}
+  if(hashJoe[recordingid]&&userid=="Joe"){
+    return true;
+  }
+  else if(hashJake[recordingid]&&userid=="Jake"){
 
-export enum Collections {
-    Users = "Users",
-    Recordings = "Recordings"
+    return true;
+  }
+  else{
+  
+      if(userid=="Joe"){
+        hashJoe[recordingid]=userid;
+        functions.logger.debug("setting ",hashJoe[recordingid]);
+       
+      }
+      else{
+        hashJake[recordingid]=userid;
+        functions.logger.debug("setting ",hashJake[recordingid]);
+
+      }
+       return false;
+  }
+
 }
 
 export async function trackRecordingView(viewerId: string, recordingId: string): Promise<void> {
   // TODO: implement this function
 
+  if (typeof hashJoe === 'undefined') {
+    var hashJoe:any = new Map<string,string>();
+  }
+  if (typeof hashJake === 'undefined') {
+    var hashJake:any = new Map<string,string>();
+  }
+
   // logs can be viewed in the firebase emulator ui
   functions.logger.debug("viewerId: ", viewerId);
   functions.logger.debug("recordingId: ", recordingId);
 
+  if(false==updateCheckViewed(hashJoe,hashJake,viewerId,recordingId)){
 
-  // ATTN: the rest of the code in this file is only here to show how firebase works
+  const recording = await db.collection("Recordings").doc(recordingId).get();
+  const user = await db.collection("Users").doc(viewerId).get();
+  var amount = recording.get("uniqueViewCount");
+  var userAmount =user.get("uniqueRecordingViewCount");
+  await db.collection("Recordings").doc(recordingId).update({uniqueViewCount: amount+1});
+  await db.collection("Users").doc(viewerId).update({uniqueRecordingViewCount: userAmount+1});
+  }
 
   // read from a document
   const documentSnapshot = await db.collection("collection").doc("doc").get();
@@ -44,18 +66,21 @@ export async function trackRecordingView(viewerId: string, recordingId: string):
 
   // overwrite a document based on the data you have when sending the write request
   // set overwrites all existing fields and creates new documents if necessary
-  await db.collection("collection").doc("doc").set({id: "id", field: "foo"});
+  await db.collection("collection").doc("doc").set({id: viewerId, field: recordingId});
   // update will fail if the document exists and will only update fields included
   // in your update
-  await db.collection("collection").doc("doc").update({id: "id", field: "bar"});
+  await db.collection("collection").doc("doc").update({id: viewerId, field: recordingId});
 
   // update based on data inside the document at the time of the write using a transaction
   // https://firebase.google.com/docs/firestore/manage-data/transactions#web-version-9
 
   await db.runTransaction(async (t): Promise<void> => {
     const ref = db.collection("collection").doc("doc");
-    const docSnapshot = await t.get(ref);
+    //const docSnapshot = await t.get(ref);
     // do something with the data
-    t.set(ref, {id: "id", field: "foobar"});
+
+    //console.log(docSnapshot);
+    t.set(ref, {id: viewerId, field: recordingId});
+
   });
 }
